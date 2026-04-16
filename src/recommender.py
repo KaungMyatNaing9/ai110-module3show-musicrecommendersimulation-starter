@@ -39,12 +39,29 @@ class Recommender:
         self.songs = songs
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
-        # TODO: Implement recommendation logic
-        return self.songs[:k]
+        def score(song: Song) -> float:
+            s = 0.0
+            if song.genre == user.favorite_genre:
+                s += 2.0
+            if song.mood == user.favorite_mood:
+                s += 1.0
+            s += 1 - abs(song.energy - user.target_energy)
+            # likes_acoustic maps True → prefers 1.0, False → prefers 0.0
+            acoustic_pref = 1.0 if user.likes_acoustic else 0.0
+            s += 1 - abs(song.acousticness - acoustic_pref)
+            return s
+
+        return sorted(self.songs, key=score, reverse=True)[:k]
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
-        # TODO: Implement explanation logic
-        return "Explanation placeholder"
+        reasons = []
+        if song.genre == user.favorite_genre:
+            reasons.append(f"genre matches '{user.favorite_genre}'")
+        if song.mood == user.favorite_mood:
+            reasons.append(f"mood matches '{user.favorite_mood}'")
+        energy_sim = round(1 - abs(song.energy - user.target_energy), 2)
+        reasons.append(f"energy similarity {energy_sim}")
+        return ", ".join(reasons) if reasons else "low overall match"
 
 def load_songs(csv_path: str) -> List[Dict]:
     """
