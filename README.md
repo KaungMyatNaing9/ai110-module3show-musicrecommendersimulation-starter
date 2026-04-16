@@ -11,7 +11,7 @@ Your goal is to:
 - Evaluate what your system gets right and wrong
 - Reflect on how this mirrors real world AI recommenders
 
-Replace this paragraph with your own summary of what your version does.
+This project is a content-based music recommender system called VibeFinder 1.0. It reads a catalog of 20 songs from a CSV file and compares each song's features to a user's stored taste preferences. Features include genre, mood, energy, tempo, valence, danceability, and acousticness. Each song receives a compatibility score based on how closely it matches the user's preferences, and the top five highest-scoring songs are returned as recommendations. The scoring rewards closeness rather than magnitude, meaning a song does not rank higher just for being loud or fast. It ranks higher because its values are near what the user asked for. The system was tested with six different user profiles including standard profiles like High-Energy Pop and Chill Lofi, and adversarial profiles like Conflicted Energy and All-Low/Dark to explore where the logic breaks down.
 
 ---
 
@@ -116,11 +116,13 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Experiments You Tried
 
-Use this section to document the experiments you ran. For example:
+Six user profiles were tested to evaluate how the recommender behaves across different taste types.
 
-- What happened when you changed the weight on genre from 2.0 to 0.5
-- What happened when you added tempo or valence to the score
-- How did your system behave for different types of users
+The Chill Lofi profile gave the cleanest results. Library Rain ranked first because its energy was a perfect match at 0.35 and its acousticness of 0.86 was very close to the preferred 0.80. Both genre and mood also matched, giving it the full categorical bonus of 3.0 points. Midnight Coding came in second with nearly identical reasoning, just slightly further from the preferred energy and acousticness values. This felt exactly right.
+
+The Conflicted Energy profile was the most revealing. It asked for ambient genre and melancholic mood, but also 0.95 energy and 0.90 danceability. No song in the catalog fits all of those at once. The system ended up recommending high-energy songs that completely ignored the mood preference, essentially falling back to numerical similarity when categorical features found no match. This showed that the system has no way to handle internally contradictory preferences. It just averages everything and picks the survivors.
+
+A weight shift experiment was also reasoned through without changing the code. Doubling the energy weight from 1.0 to 2.0 and halving the genre weight from 2.0 to 1.0 would cause cross-genre songs with similar energy to compete more evenly with genre-matched songs. For a High-Energy Pop user, an EDM song like Neon Babylon would climb the rankings because its energy of 0.95 almost perfectly matches the preference of 0.90, even without a genre match. The tradeoff is that recommendations become less stylistically consistent.
 
 ### Terminal Output Screenshots
 
@@ -146,15 +148,13 @@ Use this section to document the experiments you ran. For example:
 
 ## Limitations and Risks
 
-Summarize some limitations of your recommender.
+The genre weight of 2.0 is the single biggest source of bias in the system. Because a genre match automatically adds 2.0 points and no other single feature can match that, songs from a slightly different but similar genre will almost always lose, even if they match the user's actual vibe much better. A pop song and an indie pop song can sound nearly identical, but the system treats them as completely unrelated.
 
-Examples:
+The catalog is too small to serve users with uncommon preferences. With only 20 songs, a user who prefers classical or metal music has at most one matching song in the dataset. The rest of the top five recommendations become whatever is least wrong, not what is actually right.
 
-- It only works on a tiny catalog
-- It does not understand lyrics or language
-- It might over favor one genre or mood
+The system cannot handle internally conflicting user profiles. If a user says they want very high energy but also a melancholic mood, those two preferences fight each other and no song can satisfy both. The system has no way to prioritize one over the other and ends up with mediocre recommendations across the board.
 
-You will go deeper on this in your model card.
+Features are scored independently, so the system misses the meaning that comes from combinations. High energy combined with high acousticness usually means a live performance recording, but the system just sees two separate numbers rather than understanding that relationship.
 
 ---
 
@@ -164,10 +164,11 @@ Read and complete `model_card.md`:
 
 [**Model Card**](model_card.md)
 
-Write 1 to 2 paragraphs here about what you learned:
+Building this system changed how I think about apps like Spotify. Before this project I assumed those systems were reading my mind somehow. Now I understand they are doing something much more concrete: turning listening behavior and song properties into numbers and doing math. The result feels like magic, but the underlying logic is really just careful feature design and scale.
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+What surprised me most was how much a single number in the code, the genre weight of 2.0, shaped the entire personality of the recommender. That one value decided which profile types would get great recommendations and which would get mediocre ones. Real systems make those choices constantly in ways users never see, and I now understand that every recommender reflects the values of whoever built it. Weighting genre heavily is saying genre is the most important thing about a song. That is not a neutral choice.
+
+I also discovered how easy it is to accidentally create a filter bubble. My system kept recommending the same few songs to similar profiles, not by design, but just because the scoring math kept rewarding the same winners. Fixing that would mean deliberately introducing diversity and accepting slightly worse average accuracy in return, which is a real tradeoff that production systems have to make consciously.
 
 
 ---
