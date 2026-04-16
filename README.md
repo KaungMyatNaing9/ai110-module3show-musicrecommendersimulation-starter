@@ -2,15 +2,6 @@
 
 ## Project Summary
 
-In this project you will build and explain a small music recommender system.
-
-Your goal is to:
-
-- Represent songs and a user "taste profile" as data
-- Design a scoring rule that turns that data into recommendations
-- Evaluate what your system gets right and wrong
-- Reflect on how this mirrors real world AI recommenders
-
 This project is a content-based music recommender system called VibeFinder 1.0. It reads a catalog of 20 songs from a CSV file and compares each song's features to a user's stored taste preferences. Features include genre, mood, energy, tempo, valence, danceability, and acousticness. Each song receives a compatibility score based on how closely it matches the user's preferences, and the top five highest-scoring songs are returned as recommendations. The scoring rewards closeness rather than magnitude, meaning a song does not rank higher just for being loud or fast. It ranks higher because its values are near what the user asked for. The system was tested with six different user profiles including standard profiles like High-Energy Pop and Chill Lofi, and adversarial profiles like Conflicted Energy and All-Low/Dark to explore where the logic breaks down.
 
 ---
