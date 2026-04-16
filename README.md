@@ -17,15 +17,41 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Real-world recommendation systems like Spotify and YouTube use what are called **hybrid recommendation systems** — combining two main approaches to suggest content. The first is **collaborative filtering**, which looks at patterns in user behavior: what songs you liked, skipped, added to playlists, or played repeatedly, then finds other users with similar habits and recommends what they enjoyed. The second is **content-based filtering**, which analyzes the actual properties of a song — things like audio energy, tempo, mood, and danceability — and finds other songs with similar characteristics. These systems operate at massive scale, processing millions of interactions per second using machine learning models trained on billions of data points. They continuously update recommendations in real time as new interactions come in, so the more you listen, the more personalized your feed becomes. Real systems are also optimized for engagement metrics like watch time, retention, and session length — meaning recommendations are shaped not just by what you like, but by what keeps you on the platform longest. This combination of behavioral signals and audio features is what makes modern recommenders feel surprisingly accurate at capturing your "vibe."
+Real-world recommendation systems like Spotify and YouTube use **hybrid recommendation systems** — combining two main approaches. **Collaborative filtering** looks at patterns in user behavior (likes, skips, playlists) and finds other users with similar habits to inform suggestions. **Content-based filtering** analyzes the actual properties of a song — energy, tempo, mood, danceability — and finds other songs with similar characteristics. These systems operate at massive scale, processing millions of interactions per second using machine learning models trained on billions of data points. They continuously update recommendations in real time, so the more you listen, the more personalized your feed becomes. Real systems also optimize for engagement metrics like watch time and retention, meaning recommendations are shaped not just by what you like but by what keeps you on the platform longest. This combination of behavioral signals and audio features is what makes modern recommenders feel surprisingly accurate at capturing your "vibe."
 
-Our system takes a simpler but conceptually similar approach. We implement a **content-based recommendation system** that generates recommendations by directly comparing each song's features to a user's stored taste profile. Every song is represented as a vector of numerical and categorical features — including energy, valence, tempo, danceability, and acousticness — that describe the "feel" of that track. The user profile stores corresponding preferred values for each of those features. To score a song, we compute how close its feature values are to the user's preferences using a **distance-based scoring function** that rewards closeness rather than just rewarding higher or lower values. Categorical features like genre and mood are matched directly: if the song's genre matches the user's preferred genre, that feature contributes its full score. All features together produce a final score that reflects overall compatibility between a song and the user's taste.
+Our system takes a simpler but conceptually grounded approach. We implement a **content-based recommendation system** that generates recommendations by directly comparing each song's features to a stored user taste profile — no listening history needed. Every song is represented as a vector of numerical and categorical features (energy, valence, tempo, danceability, acousticness, genre, mood) that describe the "feel" of that track. To score a song, we compute how close its feature values are to the user's preferences using a **distance-based scoring function** that rewards closeness rather than just higher or lower values. Categorical features (genre and mood) are matched directly for a binary full-weight or zero contribution. All features are then combined into a normalized final score between 0 and 1.
 
-The scoring logic works feature by feature. Each feature contributes a similarity score between 0 and 1, where 1 means a perfect match and 0 means maximally different. We use a **weighted scoring system** that treats some features as more important than others — genre and mood carry higher weights because they have an outsized influence on whether a song "fits" compared to fine-grained numerical differences in tempo or acousticness. The final recommendation score is a weighted sum of all individual feature similarity scores, normalized by the total weight so that scores remain in a consistent 0–1 range.
+### Algorithm Recipe
 
-Once every song in the catalog has been scored against the user profile, we sort all songs by their final score in descending order. The system then recommends the **top K songs** — the closest matches — to the user.
+| Feature | Weight | How It's Scored |
+|---|---|---|
+| `genre` match | **2.0** | +2.0 if genre matches, +0 otherwise |
+| `mood` match | **1.5** | +1.5 if mood matches, +0 otherwise |
+| `energy` similarity | **1.0** | `1 - \|song - user\| / 1.0` × 1.0 |
+| `valence` similarity | **1.0** | `1 - \|song - user\| / 1.0` × 1.0 |
+| `danceability` similarity | **0.75** | `1 - \|song - user\| / 1.0` × 0.75 |
+| `tempo_bpm` similarity | **0.75** | `1 - \|song - user\| / 120` × 0.75 |
+| `acousticness` similarity | **0.5** | `1 - \|song - user\| / 1.0` × 0.5 |
+| **Total max score** | **7.5** | Final score normalized to 0–1 range |
 
-This approach simulates how "vibe-based" recommendations work in practice: by matching energy, mood, and musical style, the system surfaces songs that feel like they belong together even without knowing anything about the user's listening history.
+**Numerical similarity formula:** `similarity = 1 - (|song_value - user_value| / max_range)`
+This rewards closeness — a song perfectly matching the user's preferred energy scores 1.0, while the maximum possible distance scores 0.0.
+
+### Scoring vs. Ranking
+
+**Scoring** assigns a compatibility number to each individual song in the catalog. **Ranking** is the final step — all scored songs are sorted in descending order and the **top K** are returned as recommendations. Scoring answers *"how compatible is this song?"* Ranking answers *"which songs are best relative to each other?"*
+
+See the full system flowchart: [docs/system_flowchart.md](docs/system_flowchart.md)
+
+### Sample Output
+
+![Recommender terminal output](docs/output.png)
+
+### Limitations and Bias
+
+- The high genre weight (2.0) means a song with a different genre label but nearly identical energy, mood, and tempo will rank much lower than it deserves — the system may miss great cross-genre matches.
+- Users with niche preferences (e.g., classical or metal) will receive weaker recommendations from a catalog that underrepresents those genres, since the genre match bonus is rarely triggered.
+- All features are treated as independent — the system doesn't capture combined signals like "high energy AND high acousticness" (typical of live recordings), so those combinations may be scored misleadingly.
 
 ---
 
@@ -34,9 +60,9 @@ This approach simulates how "vibe-based" recommendations work in practice: by ma
 ### Song Object Features
 
 - `genre` — the musical category of the song (e.g. pop, hip-hop, jazz)
-- `mood` — the emotional tone of the song (e.g. happy, melancholic, energetic)
+- `mood` — the emotional tone of the song (e.g. happy, melancholic, aggressive)
 - `energy` — a 0–1 score reflecting intensity and activity level
-- `tempo_bpm` — the speed of the song in beats per minute
+- `tempo_bpm` — the speed of the song in beats per minute (realistic range: 60–180)
 - `valence` — a 0–1 score reflecting musical positivity (high = upbeat, low = somber)
 - `danceability` — a 0–1 score reflecting how suitable the song is for dancing
 - `acousticness` — a 0–1 score reflecting how acoustic (vs. electronic) the song sounds
@@ -95,6 +121,26 @@ Use this section to document the experiments you ran. For example:
 - What happened when you changed the weight on genre from 2.0 to 0.5
 - What happened when you added tempo or valence to the score
 - How did your system behave for different types of users
+
+### Terminal Output Screenshots
+
+**High-Energy Pop**
+![High-Energy Pop Results](docs/highenergy.png)
+
+**Chill Lofi**
+![Chill Lofi Results](docs/chill.png)
+
+**Deep Intense Rock**
+![Deep Intense Rock Results](docs/deeprock.png)
+
+**Conflicted Energy (adversarial)**
+![Conflicted Energy Results](docs/conflictedenergy.png)
+
+**All-Low / Dark (adversarial)**
+![All-Low / Dark Results](docs/alllow.png)
+
+**K-Pop Aggressive (adversarial)**
+![K-Pop Aggressive Results](docs/kpop.png)
 
 ---
 
